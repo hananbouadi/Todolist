@@ -1,0 +1,132 @@
+<?php
+
+
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_NAME', 'todolist');
+define('DB_HOST', '127.0.0.1');
+define('DB_PORT', '3306');
+
+
+try {
+    $pdo = new PDO("mysql:host=" . DB_HOST . ";port=" . DB_PORT . ";dbname=" . DB_NAME, DB_USER, DB_PASS);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch (PDOException $e) {
+    die("Database connection failed: " . $e->getMessage());
+}
+
+
+function getTasks($pdo)
+{
+    $query = "SELECT * FROM todo ORDER BY created_at DESC";
+    $statement = $pdo->prepare($query);
+    $statement->execute();
+    return $statement->fetchAll(PDO::FETCH_ASSOC);
+}
+
+
+function addTask($pdo, $task)
+{
+    $query = "INSERT INTO todo (task_name, done, created_at) VALUES (:task_name, 0, NOW())";
+    $statement = $pdo->prepare($query);
+    $statement->bindParam(':task_name', $task, PDO::PARAM_STR);
+    $statement->execute();
+}
+
+
+function deleteTask($pdo, $taskId)
+{
+    $query = "DELETE FROM todo WHERE id = :id";
+    $statement = $pdo->prepare($query);
+    $statement->bindParam(':id', $taskId, PDO::PARAM_INT);
+    $statement->execute();
+}
+
+
+function toggleTask($pdo, $taskId)
+{
+    $query = "UPDATE todo SET done = 1 - done WHERE id = :id";
+    $statement = $pdo->prepare($query);
+    $statement->bindParam(':id', $taskId, PDO::PARAM_INT);
+    $statement->execute();
+}
+
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['action'])) {
+        if ($_POST['action'] === 'new' && isset($_POST['task'])) {
+            $task = $_POST['task'];
+            addTask($pdo, $task);
+        } elseif ($_POST['action'] === 'delete' && isset($_POST['id'])) {
+            $taskId = $_POST['id'];
+            deleteTask($pdo, $taskId);
+        } elseif ($_POST['action'] === 'toggle' && isset($_POST['id'])) {
+            $taskId = $_POST['id'];
+            toggleTask($pdo, $taskId);
+        }
+    }
+}
+
+
+$taches = getTasks($pdo);
+?>
+
+
+<?php
+
+
+$taches = getTasks($pdo);
+?>
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Todo List</title>
+    
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body>
+
+    
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Todo App</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+
+        
+        <form method="POST" class="mb-3">
+            <div class="input-group">
+                <input type="text" class="form-control" placeholder="Enter a new task" name="task">
+                <div class="input-group-append">
+                    <button class="btn btn-primary" type="submit" name="action" value="new">Add Task</button>
+                </div>
+            </div>
+        </form>
+
+        
+        <ul class="list-group">
+            <?php foreach ($taches as $task) : ?>
+                <li class="list-group-item <?php echo ($task['done'] == 1) ? 'list-group-item-success' : 'list-group-item-warning'; ?>">
+                    <?php echo $task['task_name']; ?>
+                    <form method="POST" class="float-right">
+                        <input type="hidden" name="id" value="<?php echo $task['id']; ?>">
+                        <button type="submit" class="btn btn-sm btn-info mr-2" name="action" value="toggle">Toggle</button>
+                        <button type="submit" class="btn btn-sm btn-danger" name="action" value="delete">Delete</button>
+                    </form>
+                </li>
+            <?php endforeach; ?>
+        </ul>
+    </div>
+
+    
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
+
